@@ -59,19 +59,16 @@ h1{
 
 <body>
 <div class="wrap">
-  <h1>ARCHCARDS</h1>
+  <h1>CopyARCHI</h1>
   <div class="grid" id="grid-archcards"></div>
 
-  <h1>STRUCTURE</h1>
-  <div class="grid" id="grid-structure"></div>
-
-  <h1>ENGLISH</h1>
-  <div class="grid" id="grid-english"></div>
 </div>
 
 <script>
-const API_BASE = "https://copyarchi-api.yuki-548.workers.dev"; // Workers
+const API_BASE = "https://copyarchi.yuki-548.workers.dev"; // Workers
 const gridArch = document.getElementById("grid-archcards");
+const gridStruct = document.getElementById("grid-structure");
+const gridEnglish = document.getElementById("grid-english");
 
 // ARCHCARDS（同一タブ遷移）
 const archcards = [
@@ -97,7 +94,6 @@ const archcards = [
     targetBlank: false
   }
 ];
-
 
 async function pickRandomImage(cat){
   try{
