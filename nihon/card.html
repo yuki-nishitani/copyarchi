@@ -1,0 +1,480 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>archcards</title>
+  <style>
+    body { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; margin: 0; background:#fafafa; }
+    .wrap { max-width: 720px; margin: 0 auto; padding: 16px; }
+
+    .card {
+      background: #fff;
+      border: 1px solid #ddd;
+      border-radius: 14px;
+      padding: 12px;
+      overflow: hidden;
+      user-select: none;
+    }
+
+    /* 画像共通：縦長は max-height で抑える */
+    .img {
+      width: 100%;
+      height: auto;
+      max-height: 40vh;     /* ←あなたの指定 */
+      object-fit: contain;
+      border-radius: 8px;
+      display:block;
+      background: #fff;
+    }
+
+    .stack .img + .img { margin-top: 10px; } /* 表は縦並び */
+
+    .info {
+      padding: 12px;
+      border-radius: 10px;
+      background:#f2f4f7;
+    }
+    .row { margin: 6px 0; line-height: 1.35; }
+    .label { color:#555; font-weight: 500; margin-right: 6px; }
+
+    /* 裏面：横並び */
+    .thumbs {
+      margin-top: 12px;
+      display: flex;
+      gap: 5px;
+      align-items: flex-start;
+    }
+    .thumb {
+      flex: 1 1 0;
+      max-width: 50%;
+    }
+    .thumb img {
+      width: 100%;
+      height: auto;
+      max-height: 40vh;     /* ←同じ制限 */
+      object-fit: contain;
+      border-radius: 5px;
+      display:block;
+      background:#fff;
+    }
+
+    .hint { color:#666; font-size: 13px; margin-top: 10px; }
+
+
+    /* 建築名（名称）だけ見出しっぽく */
+    #title{
+      font-size: 1.4em;        /* 大きさ：好みで 1.25〜1.6em */
+      font-weight: 600;        /* 太さ */
+      letter-spacing: 0.02em;  /* 少しだけ間をあけて見出し感 */
+      display: inline-block;
+      margin-bottom: 6px;      /* 次の行との間 */
+    }
+
+    /* （任意）名称の行だけ詰める/整えるなら */
+    .row:first-child{
+      margin-top: 0;
+    }
+
+
+    /* 表⇄裏 切替（高さは内容に合わせて自然に変わる） */
+    .face { display: none; }
+    .card.show-front .front { display: block; }
+    .card.show-back  .back  { display: block; }
+
+    .topbar{
+      display: flex;
+      justify-content: space-between;
+      align-items: center; gap:10px;
+      margin-bottom: 10px;
+    }
+    
+    .modebtn{
+      padding: 6px 10px;
+      color: #333;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      background: #f8f8f8;
+      cursor: pointer;
+      user-select: none;
+      font-size: 14px; 
+    }
+
+    .modebtn:active{
+      transform: translateY(1px);
+    }
+
+    .nav{
+      margin-top: 12px;
+      display: flex;
+      gap: 10px;
+    }
+
+    .navbtn{
+      flex: 1 1 0;
+      padding: 6px 10px;
+      color: #333;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      background: #f8f8f8;
+      text-align: center;
+      cursor: pointer;
+      user-select: none;
+      font-size: 14px; 
+    }
+
+    /* aタグ版の見た目をボタンに揃える */
+    .navlink{
+      text-decoration: none;
+      color: #333;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .navbtn:active{
+      transform: translateY(1px);
+    }
+
+    /* モード切替ボタンを強調 */
+    #modeBtn{
+      flex: 2 1 0;        /* 横幅を他より広く */
+      font-weight: 600;   /* やや太字（500〜600が上品） */
+      letter-spacing: 0.03em;
+    }
+
+    #modeBtn.random{
+      background: #cb533e;
+      border-color: #deaeb4;
+      font-weight: 700;
+      color: #ffffff;
+    }
+
+    /* 裏面：2列で折り返し */
+    .thumbs{
+      margin-top: 12px;
+      display: flex;
+      flex-wrap: wrap;   /* ★追加 */
+      gap: 5px;
+      align-items: flex-start;
+    }
+
+    .thumb{
+      flex: 0 0 calc(50% - 2.5px);  /* ★2列 */
+      max-width: calc(50% - 2.5px);
+    }
+
+  </style>
+</head>
+
+<body>
+  <div class="wrap">
+
+    <div class="topbar">
+      <a class="modebtn navlink" id="btnList" href="list.html">一覧へ</a>
+      <a class="modebtn navlink" id="btnEdit" href="#">カードを編集する</a>
+    </div>
+    
+    <div class="card show-front" id="card">
+      <!-- FRONT: 流し見（画像だけ縦並び） -->
+      <div class="face front stack">
+        <div id="frontImages"></div>
+        <div class="hint">タップ：詳細 / 左右フリック：次・前</div>
+      </div>
+
+      <!-- BACK: 文字（上） + 画像（下で横並び） -->
+      <div class="face back">
+        <div class="info">
+          <div class="row title-row"><span id="title"></span></div>
+          <div class="row"><span class="label">年代:</span><span id="year"></span></div>
+          <div class="row"><span class="label">様式:</span><span id="style"></span></div>
+          <div class="row"><span class="label">建築家:</span><span id="architect"></span></div>
+          <div class="row"><span class="label">場所:</span><span id="location"></span></div>
+          <div class="row"><span class="label">メモ:</span><span id="desc"></span></div>
+        </div>
+
+        <div class="thumbs" id="backImages"></div>
+
+        <div class="hint">タップ：戻る / 左右フリック：次・前</div>
+      </div>
+
+      <div class="nav">
+        <button class="navbtn" id="btnPrev" type="button">前へ</button>
+        <button class="navbtn" id="modeBtn" type="button">通常モード</button>
+        <button class="navbtn" id="btnNext" type="button">次へ</button>
+      </div>
+
+    </div>
+  </div>
+
+<script>
+  const DATA_JSON = "https://copyarchi-api.yuki-548.workers.dev/api/items?collection=nihon";
+  let items = [];
+  let idx = 0;
+
+  let randomMode = false;
+  let randHistory = []; // ランダムで辿った履歴（前へで戻る用）
+
+
+
+  const card = document.getElementById("card");
+  // URLパラメータ (?id=ise など) を読む
+  const params = new URLSearchParams(location.search);
+  const startId = params.get("id");
+
+
+  function $(id) { return document.getElementById(id); }
+
+  function showFront() {
+    card.classList.add("show-front");
+    card.classList.remove("show-back");
+  }
+
+  function showBack() {
+    card.classList.add("show-back");
+    card.classList.remove("show-front");
+
+    const wrap = document.getElementById("backImages");
+    wrap.querySelectorAll("img").forEach(el => {
+      if (el.getAttribute("src")) return;
+
+      const u = (el.dataset.src || "").trim();
+      if (!u || u === "undefined" || u === "null") {
+        // そもそも無効なら枠ごと消す
+        el.closest(".thumb")?.remove();
+        return;
+      }
+
+      el.onerror = () => {
+        // 読み込み失敗(404/非画像/etc) → 枠ごと消す
+        el.closest(".thumb")?.remove();
+      };
+
+      el.src = u;
+    });
+  }
+
+
+  function isBack() {
+    return card.classList.contains("show-back");
+  }
+
+  function render(i) {
+    if (!items.length) return;
+
+    idx = (i + items.length) % items.length;
+    const item = items[idx];
+
+    // ★ 編集リンクを更新（このカードを編集）
+    $("btnEdit").href =
+      `admin.html?id=${encodeURIComponent(item.id)}&return=card&card=card.html`;
+
+    // images: "" を除外して配列化（1..4 でも将来増えてもOK）
+    const imgs = (item.images || []).filter(u => typeof u === "string" && u.trim() !== "");
+
+    // =========================
+    // FRONT：縦に下へ追加
+    // =========================
+    const frontWrap = $("frontImages");   // <div id="frontImages"></div>
+    frontWrap.innerHTML = "";
+
+    for (const u of imgs) {
+      const im = document.createElement("img");
+      im.className = "img";
+      im.alt = "image";
+
+      // ★ 取得失敗したら、その画像を表示しない
+      im.onerror = () => {
+        im.remove();
+      };
+
+      im.src = u;                 // 表は即表示
+      frontWrap.appendChild(im);
+    }
+
+      // =========================
+    // BACK：2個で1段、3個目以降は下へ（lazy）
+    // =========================
+    const backWrap = $("backImages");     // <div id="backImages" class="thumbs"></div>
+    backWrap.innerHTML = "";
+
+    for (const u of imgs) {
+      const box = document.createElement("div");
+      box.className = "thumb";
+
+      const im = document.createElement("img");
+      im.alt = "thumb";
+      im.dataset.src = u;         // 裏は遅延（showBackでsrcを入れる）
+      im.removeAttribute("src");
+
+      box.appendChild(im);
+      backWrap.appendChild(box);
+    }
+
+    // back text
+    $("title").textContent = item.title ?? "";
+    $("year").textContent  = item.year ?? "";
+    $("style").textContent = item.style ?? "";
+    $("architect").textContent = item.architect ?? "";
+    $("location").textContent  = item.location ?? "";
+    $("desc").textContent  = item.desc ?? "";
+
+    // ページ切替時は表に戻す（好みで：詳細に留めたいなら消す）
+    showFront();
+  }
+
+
+  function renderById(id){
+    const s = String(id || "").trim();
+    if (!s) { render(0); return; }
+
+    const j = items.findIndex(it => String(it.id) === s);
+    if (j >= 0) render(j);
+    else render(0); // 見つからなければ先頭
+  }
+
+
+
+
+  function next() {
+    if (!items.length) return;
+
+    if (!randomMode) {
+      render(idx + 1);
+      return;
+    }
+
+    // ランダム：現在と同じにならないようにする（要素数1なら同じでもOK）
+    randHistory.push(idx);
+    if (items.length === 1) { render(idx); return; }
+
+    let j = idx;
+    while (j === idx) {
+      j = Math.floor(Math.random() * items.length);
+    }
+    render(j);
+  }
+
+  function prev() {
+    if (!items.length) return;
+
+    if (!randomMode) {
+      render(idx - 1);
+      return;
+    }
+
+    // ランダム：履歴を戻る
+    if (randHistory.length > 0) {
+      render(randHistory.pop());
+    } else {
+      // 履歴がないときは通常の prev にフォールバック（好みで消してOK）
+      render(idx - 1);
+    }
+  }
+
+
+  // --- Buttons: prev/next/list ---
+  const btnPrev = document.getElementById("btnPrev");
+  const btnNext = document.getElementById("btnNext");
+  const btnList = document.getElementById("btnList");
+  const btnEdit = document.getElementById("btnEdit");
+
+
+  btnPrev.addEventListener("click", (e) => { e.stopPropagation(); prev(); });
+  btnNext.addEventListener("click", (e) => { e.stopPropagation(); next(); });
+
+  // 一覧へ：カードの click (表裏反転) が発火しないようにする
+  btnList.addEventListener("click", (e) => { e.stopPropagation(); });
+  btnEdit.addEventListener("click", (e) => { e.stopPropagation(); });
+  const modeBtn = document.getElementById("modeBtn");
+
+  function updateModeUI(){
+    modeBtn.textContent = randomMode ? "ランダムモード" : "通常モード";
+    modeBtn.classList.toggle("random", randomMode);
+  }
+
+  modeBtn.addEventListener("click", (e) => {
+    e.stopPropagation();         // カードの表裏反転を誤発火させない
+    randomMode = !randomMode;
+    randHistory = [];            // モード切替時に履歴リセット（破綻防止）
+    updateModeUI();
+  });
+
+  updateModeUI();
+
+
+  async function load() {
+    const res = await fetch(DATA_JSON, { cache: "no-store" });
+    if (!res.ok) throw new Error(`data.json load failed: ${res.status}`);
+    items = await res.json();
+    if (!Array.isArray(items) || items.length === 0) throw new Error("data.json is empty");
+
+    if (startId) {
+      renderById(startId);
+    } else {
+      render(0);
+    }
+  }
+
+  // --- Tap: front<->back ---
+  let justSwiped = false;
+
+  card.addEventListener("click", () => {
+    if (justSwiped) return;
+    if (isBack()) showFront();
+    else showBack();
+  });
+
+  // --- Swipe: prev/next ---
+  let startX = 0, startY = 0, startT = 0;
+  let tracking = false;
+
+  card.addEventListener("touchstart", (e) => {
+    if (!e.touches || e.touches.length !== 1) return;
+    const t = e.touches[0];
+    startX = t.clientX;
+    startY = t.clientY;
+    startT = Date.now();
+    tracking = true;
+    justSwiped = false;
+  }, { passive: true });
+
+  card.addEventListener("touchend", (e) => {
+    if (!tracking) return;
+    tracking = false;
+
+    const t = (e.changedTouches && e.changedTouches[0]) ? e.changedTouches[0] : null;
+    if (!t) return;
+
+    const dx = t.clientX - startX;
+    const dy = t.clientY - startY;
+    const dt = Date.now() - startT;
+
+    const MIN_X = 60;
+    const MAX_Y = 60;
+    const MAX_TIME = 600;
+
+    const isSwipe = (Math.abs(dx) >= MIN_X) && (Math.abs(dy) <= MAX_Y) && (dt <= MAX_TIME);
+    if (!isSwipe) return;
+
+    justSwiped = true;
+    setTimeout(() => { justSwiped = false; }, 250);
+
+    if (dx < 0) next();
+    else prev();
+  }, { passive: true });
+
+  // PC確認用
+  window.addEventListener("keydown", (e) => {
+    if (e.key === "ArrowRight") next();
+    if (e.key === "ArrowLeft") prev();
+    if (e.key === "Enter") { if (isBack()) showFront(); else showBack(); }
+  });
+
+  load().catch(err => {
+    console.error(err);
+    alert("APIの読み込みに失敗しました。DevTools → Network で /api/items のStatusを確認してください。");
+  });
+</script>
+</body>
+</html>
